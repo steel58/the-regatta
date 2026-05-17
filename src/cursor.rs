@@ -4,15 +4,12 @@ pub mod cursor {
     #[derive(Component)]
     pub struct VirtualCursor {
         sensitivity: f32,
-        x_max: f32,
-        y_max: f32,
-        x_min: f32,
-        y_min: f32,
     }
 
     const CAMERA_SPEED: f32 = 300.0;
+    const CAMERA_MOVE_BORDER: f32 = 20.0;
 
-    pub fn spawn_cursor(
+    pub fn spawn_cursor (
         mut commands: Commands,
         mut meshes: ResMut<Assets<Mesh>>,
         mut materials: ResMut<Assets<ColorMaterial>>,
@@ -31,10 +28,6 @@ pub mod cursor {
         commands.spawn((
                 VirtualCursor {
                     sensitivity: 0.5,
-                    x_max: width,
-                    y_max: height,
-                    x_min: -width,
-                    y_min: -height,
                 },
                 Mesh2d(meshes.add(triangle)),
                 MeshMaterial2d(materials.add(Color::srgb(0.8, 0.14, 1.0))),
@@ -44,9 +37,10 @@ pub mod cursor {
     }
 
 
-    pub fn update_cursor(
+    pub fn update_cursor (
         mut evr_motion: EventReader<bevy::input::mouse::MouseMotion>,
         mut q_cursors: Query<(&mut Transform, &VirtualCursor), With<VirtualCursor>>,
+        mut q_cameras: Query<&mut Transform, (With<Camera>, Without<VirtualCursor>)>,
     ) {
         let (mut transform, cursor) = q_cursors.single_mut();
 
@@ -60,24 +54,71 @@ pub mod cursor {
             });
     }
 
+
     pub fn confine_cursor (
-        mut q_cursors: Query<(&mut Transform, &VirtualCursor), With<VirtualCursor>>,
-        q_cameras: Query<(&Camera, &GlobalTransform), With<Camera>>,
+        mut q_cursors: Query<&mut Transform, With<VirtualCursor>>,
+        mut q_cameras: Query<
+            (&Camera, &mut Transform, &GlobalTransform),
+            (With<Camera>, Without<VirtualCursor>)
+        >,
+        time: Res<Time>,
     ) {
-        let (camera, camera_transform) = q_cameras.single();
-        let (mut transform, _cursor) = q_cursors.single_mut();
+        let (camera, mut camera_transform, global_camera_transform) = q_cameras.single_mut();
+        let mut transform = q_cursors.single_mut();
 
         if let Some(viewport_rect) = camera.logical_viewport_rect() {
-            let min = camera.viewport_to_world_2d(camera_transform, viewport_rect.min).unwrap();
-            let max = camera.viewport_to_world_2d(camera_transform, viewport_rect.max).unwrap();
+            let cam_min = camera.viewport_to_world_2d(
+                global_camera_transform,
+                viewport_rect.min,
+            ).unwrap();
 
-            transform.translation.x = transform.translation.x.clamp(min.x, max.x);
-            transform.translation.y = transform.translation.y.clamp(max.y, min.y);
+            let cam_max = camera.viewport_to_world_2d(
+                global_camera_transform,
+                viewport_rect.max,
+            ).unwrap();
+
+            let x_min = cam_min.x;
+            let x_max = cam_max.x;
+
+            let y_min = cam_max.y;
+            let y_max = cam_min.y;
+
+            let mut camera_direction = Vec2::ZERO;
+
+            if transform.translation.y >= y_max - CAMERA_MOVE_BORDER {
+                camera_direction.y += 1.0;
+            }
+
+            if transform.translation.y <= y_min + CAMERA_MOVE_BORDER {
+                camera_direction.y -= 1.0;
+            }
+
+            if transform.translation.x <= x_min + CAMERA_MOVE_BORDER {
+                camera_direction.x -= 1.0;
+            }
+
+            if transform.translation.x >= x_max - CAMERA_MOVE_BORDER {
+                camera_direction.x += 1.0;
+            }
+
+            if camera_direction != Vec2::ZERO {
+                camera_direction = camera_direction.normalize();
+            }
+
+            let camera_displacement_x = camera_direction.x * CAMERA_SPEED * time.delta_secs(); 
+            let camera_displacement_y = camera_direction.y * CAMERA_SPEED * time.delta_secs();
+            camera_transform.translation.x += camera_displacement_x;
+            camera_transform.translation.y += camera_displacement_y;
+
+
+
+            transform.translation.x = (transform.translation.x + camera_displacement_x).clamp(x_min, x_max);
+            transform.translation.y = (transform.translation.y + camera_displacement_y).clamp(y_min, y_max);
         }
     }
 
 
-    pub fn grab_mouse(
+    pub fn grab_mouse (
         mut windows: Query<&mut Window, With<PrimaryWindow>>
     ) {
         let mut window = windows.single_mut();
@@ -86,7 +127,7 @@ pub mod cursor {
     }
 
 
-    pub fn free_mouse(
+    pub fn free_mouse (
         mut q_windows: Query<&mut Window, With<PrimaryWindow>>,
     ) {
         let mut primary_window = q_windows.single_mut();
@@ -99,11 +140,11 @@ pub mod cursor {
         keys: Res<ButtonInput<KeyCode>>,
         time: Res<Time>,
         mut q_cameras: Query<&mut Transform, (With<Camera>, Without<VirtualCursor>)>,
-        mut q_cursors: Query<(&mut Transform, &mut VirtualCursor), With<VirtualCursor>>,
+        q_cursors: Query<&Transform, With<VirtualCursor>>,
     ) {
         let mut transform = q_cameras.single_mut();
         let mut direction = Vec2::ZERO;
-        let (mut cursor_transform, mut cursor) = q_cursors.single_mut();
+        let cursor_transform = q_cursors.single();
 
         if keys.pressed(KeyCode::ArrowUp) {
             direction.y += 1.0;
@@ -127,40 +168,7 @@ pub mod cursor {
 
         let camera_displacement_x = direction.x * CAMERA_SPEED * time.delta_secs(); 
         let camera_displacement_y = direction.y * CAMERA_SPEED * time.delta_secs();
-        cursor.x_max += camera_displacement_x;
-        cursor.y_max += camera_displacement_y;
-        cursor.x_min += camera_displacement_x;
-        cursor.y_min += camera_displacement_y;
         transform.translation.x += camera_displacement_x;
         transform.translation.y += camera_displacement_y;
-        // cursor_transform.translation.x = cursor_transform.translation.x
-        //     .clamp(cursor.x_min, cursor.x_max);
-        // cursor_transform.translation.y = cursor_transform.translation.y
-        //     .clamp(cursor.y_min, cursor.y_max);
-    }
-
-    pub fn debug_cursor(
-        q_cursors: Query<(&Transform, &VirtualCursor)>,
-        q_windows: Query<&Window, With<PrimaryWindow>>,
-    ) {
-        let (transform, cursor) = q_cursors.single();
-        let window = q_windows.single();
-        println!(
-            "pos: ({}, {}) | bounds x: ({}, {}) y: ({}, {})",
-            transform.translation.x,
-            transform.translation.y,
-            cursor.x_min, cursor.x_max,
-            cursor.y_min, cursor.y_max,
-        );
-        println!(
-            "window: (height: {}, width: {})",
-            window.height(),
-            window.width(),
-        );
-        println!(
-            "window: (height: {}, width: {})",
-            window.resolution.height(),
-            window.resolution.width(),
-        );
     }
 }

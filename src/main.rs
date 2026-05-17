@@ -24,6 +24,7 @@ fn main() {
             }),
             ..default()
         }))
+    .insert_resource(ClearColor(Color::srgb(0.0, 0.39, 0.61)))
     .init_state::<GameState>()
         .add_systems(Startup, (
             setup_player,

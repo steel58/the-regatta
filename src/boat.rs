@@ -7,8 +7,8 @@ pub mod boat {
         commands.spawn((
                 Boat,
                 Sprite {
-                    color: Color::srgb(0.25, 0.6, 1.0),
-                    custom_size: Some(Vec2::new(50.0, 50.0)),
+                    color: Color::srgb(0.38, 0.26, 0.15),
+                    custom_size: Some(Vec2::new(50.0, 80.9017)),
                     ..default()
                 },
                 Transform::from_xyz(0.0, 0.0, 0.0),
