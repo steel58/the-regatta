@@ -9,11 +9,10 @@ pub mod cursor {
     const CAMERA_SPEED: f32 = 300.0;
     const CAMERA_MOVE_BORDER: f32 = 20.0;
 
-    pub fn spawn_cursor (
+    pub fn spawn_cursor(
         mut commands: Commands,
         mut meshes: ResMut<Assets<Mesh>>,
         mut materials: ResMut<Assets<ColorMaterial>>,
-        q_windows: Query<&Window, With<PrimaryWindow>>,
     ) {
         let triangle = Triangle2d::new(
             Vec2::new(0.0, 25.0),   // top
@@ -21,9 +20,6 @@ pub mod cursor {
             Vec2::new(18.0, -25.0),  // bottom right
         );
 
-        let window = q_windows.single();
-        let height = window.resolution.height() / 2.0;
-        let width = window.resolution.width() /  2.0;
 
         commands.spawn((
                 VirtualCursor {
@@ -31,16 +27,15 @@ pub mod cursor {
                 },
                 Mesh2d(meshes.add(triangle)),
                 MeshMaterial2d(materials.add(Color::srgb(0.8, 0.14, 1.0))),
-                Transform::from_xyz(0.0, 0.0, 0.0)
+                Transform::from_xyz(0.0, 0.0, 2.0)
                 .with_rotation(Quat::from_rotation_z(f32::to_radians(45.0))),
         ));
     }
 
 
-    pub fn update_cursor (
+    pub fn update_cursor(
         mut evr_motion: EventReader<bevy::input::mouse::MouseMotion>,
         mut q_cursors: Query<(&mut Transform, &VirtualCursor), With<VirtualCursor>>,
-        mut q_cameras: Query<&mut Transform, (With<Camera>, Without<VirtualCursor>)>,
     ) {
         let (mut transform, cursor) = q_cursors.single_mut();
 
@@ -55,7 +50,7 @@ pub mod cursor {
     }
 
 
-    pub fn confine_cursor (
+    pub fn confine_cursor(
         mut q_cursors: Query<&mut Transform, With<VirtualCursor>>,
         mut q_cameras: Query<
             (&Camera, &mut Transform, &GlobalTransform),
@@ -118,7 +113,7 @@ pub mod cursor {
     }
 
 
-    pub fn grab_mouse (
+    pub fn grab_mouse(
         mut windows: Query<&mut Window, With<PrimaryWindow>>
     ) {
         let mut window = windows.single_mut();
@@ -127,7 +122,7 @@ pub mod cursor {
     }
 
 
-    pub fn free_mouse (
+    pub fn free_mouse(
         mut q_windows: Query<&mut Window, With<PrimaryWindow>>,
     ) {
         let mut primary_window = q_windows.single_mut();
@@ -136,15 +131,13 @@ pub mod cursor {
         primary_window.cursor_options.visible = true;
     }
 
-    pub fn move_camera (
+    pub fn move_camera(
         keys: Res<ButtonInput<KeyCode>>,
         time: Res<Time>,
         mut q_cameras: Query<&mut Transform, (With<Camera>, Without<VirtualCursor>)>,
-        q_cursors: Query<&Transform, With<VirtualCursor>>,
     ) {
         let mut transform = q_cameras.single_mut();
         let mut direction = Vec2::ZERO;
-        let cursor_transform = q_cursors.single();
 
         if keys.pressed(KeyCode::ArrowUp) {
             direction.y += 1.0;

@@ -1,5 +1,7 @@
 mod boat;
 mod cursor;
+mod wind;
+mod utils;
 use crate::cursor::cursor::{
     confine_cursor,
     spawn_cursor,
@@ -9,8 +11,20 @@ use crate::cursor::cursor::{
     free_mouse,
 };
 use crate::boat::boat::{
-    move_player,
+    move_boat,
     setup_player,
+    rotate_sail,
+};
+use crate::wind::wind::{
+    WindArrows,
+    draw_field,
+};
+use crate::utils::utils::{
+    spawn_camera,
+    start_state,
+    GameState,
+    UserSettings,
+    pause_game,
 };
 use bevy::prelude::*;
 
@@ -24,8 +38,10 @@ fn main() {
             }),
             ..default()
         }))
-    .insert_resource(ClearColor(Color::srgb(0.0, 0.39, 0.61)))
-    .init_state::<GameState>()
+        .insert_resource(ClearColor(Color::srgb(0.0, 0.39, 0.61)))
+        .init_state::<GameState>()
+        .init_resource::<UserSettings>()
+        .init_gizmo_group::<WindArrows>()
         .add_systems(Startup, (
             setup_player,
             spawn_camera,
@@ -36,11 +52,15 @@ fn main() {
         .add_systems(OnEnter(GameState::Paused), free_mouse)
         .add_systems(OnEnter(GameState::InGame), grab_mouse)
         .add_systems(Update, (
-            move_player
+            move_boat
+                .run_if(in_state(GameState::InGame)),
+            rotate_sail
                 .run_if(in_state(GameState::InGame)),
             update_cursor
                 .run_if(in_state(GameState::InGame)),
             move_camera
+                .run_if(in_state(GameState::InGame)),
+            draw_field
                 .run_if(in_state(GameState::InGame)),
             confine_cursor,
             pause_game,
@@ -48,41 +68,4 @@ fn main() {
         .run();
 }
 
-fn spawn_camera (
-    mut commands: Commands
-) {
-    commands.spawn(Camera2d);
-}
 
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Default, States)]
-enum GameState {
-    #[default]
-    InGame,
-    Paused,
-}
-
-impl GameState {
-    fn toggle_pause(&self) -> Self {
-
-        match *self {
-            GameState::InGame => GameState::Paused,
-            GameState::Paused => GameState::InGame,
-            _ => *self,
-        }
-    }
-}
-
-fn pause_game(
-    mut next_state: ResMut<NextState<GameState>>,
-    current_state: Res<State<GameState>>,
-    input: Res<ButtonInput<KeyCode>>,
-) {
-    if input.just_pressed(KeyCode::Escape) {
-        next_state.set(current_state.toggle_pause());
-    }
-}
-
-fn start_state(mut next_state: ResMut<NextState<GameState>>) {
-    next_state.set(GameState::InGame);
-}
