@@ -52,4 +52,18 @@ pub mod utils {
             }
         }
     }
+
+    #[derive(Resource)]
+    pub struct WindSettings {
+        pub xx_factor: f32,
+        pub xy_factor: f32,
+        pub xx_function: fn(f32) -> f32,
+        pub xy_function: fn(f32) -> f32,
+        pub x_constant: f32,
+        pub yx_factor: f32,
+        pub yy_factor: f32,
+        pub yx_function: fn(f32) -> f32,
+        pub yy_function: fn(f32) -> f32,
+        pub y_constant: f32,
+    }
 }

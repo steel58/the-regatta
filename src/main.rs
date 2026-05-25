@@ -16,8 +16,9 @@ use crate::boat::boat::{
     rotate_sail,
 };
 use crate::wind::wind::{
+    WindSettings,
     WindArrows,
-    draw_field,
+    draw_wind_field,
 };
 use crate::utils::utils::{
     spawn_camera,
@@ -41,6 +42,7 @@ fn main() {
         .insert_resource(ClearColor(Color::srgb(0.0, 0.39, 0.61)))
         .init_state::<GameState>()
         .init_resource::<UserSettings>()
+        .init_resource::<WindSettings>()
         .init_gizmo_group::<WindArrows>()
         .add_systems(Startup, (
             setup_player,
@@ -60,12 +62,10 @@ fn main() {
                 .run_if(in_state(GameState::InGame)),
             move_camera
                 .run_if(in_state(GameState::InGame)),
-            draw_field
+           draw_wind_field 
                 .run_if(in_state(GameState::InGame)),
             confine_cursor,
             pause_game,
         ))
         .run();
 }
-
-
